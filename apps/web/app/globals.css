@@ -1,0 +1,108 @@
+/**
+ * Global styles + the design system's design tokens.
+ *
+ * TAILWIND V4: tokens live in CSS (`@theme`), not in a tailwind.config.js. That file does not
+ * exist in this project, and its absence is intentional.
+ *
+ * WHY SEVERITY COLOURS ARE DEFINED HERE, IN M0, BEFORE THERE IS A SINGLE FINDING
+ * ------------------------------------------------------------------------------
+ * Severity is the visual backbone of the entire product. The same CRITICAL must look
+ * identical in the findings table, the score chart, the weekly email, and the PDF report.
+ * If each surface picks its own red, the product feels unreliable — and a security tool that
+ * feels unreliable does not get renewed.
+ *
+ * Defining the tokens once, before anything consumes them, is what makes that consistency
+ * automatic rather than a thing someone has to police in code review forever.
+ *
+ * ⚠️ ACCESSIBILITY, AND IT IS NOT OPTIONAL (docs/06):
+ * COLOUR IS NEVER THE ONLY SIGNAL. Roughly 4% of men have a colour-vision deficiency; for
+ * many of them red and orange are the SAME COLOUR. A findings table that distinguishes
+ * CRITICAL from HIGH by hue alone is, for those users, a table with no severity column.
+ * Every severity badge therefore carries a LABEL and an ICON as well as a colour. This is the
+ * kind of detail that separates a product from a project.
+ */
+
+@import 'tailwindcss';
+
+@theme {
+  /* --- Severity: the product's visual backbone (docs/06 § Design system) --- */
+  --color-severity-critical: oklch(0.55 0.22 25); /* red    */
+  --color-severity-high: oklch(0.68 0.19 45); /* orange */
+  --color-severity-medium: oklch(0.8 0.16 85); /* amber  */
+  --color-severity-low: oklch(0.7 0.13 240); /* blue   */
+  --color-severity-info: oklch(0.65 0.02 260); /* slate  */
+
+  /* oklch, not hex: it is PERCEPTUALLY uniform. Lightness 0.55 looks equally bright to the
+     human eye across every hue — so our five severities read as one coherent scale instead of
+     five colours that happen to sit next to each other. Hex cannot give you that. */
+}
+
+/**
+ * Dark-mode-first. Security tools are used in dark rooms at 2am, and it is the genre
+ * convention — Wiz, Datadog, Splunk. Looking like the tools our buyers already trust is
+ * itself a credibility signal.
+ *
+ * These semantic tokens are the shadcn/ui contract: its components consume `--background`,
+ * `--foreground`, `--primary`, etc. Restyling the whole app means editing these values —
+ * never editing the generated components in components/ui/.
+ */
+:root {
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.15 0.01 260);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.01 260);
+  --primary: oklch(0.55 0.2 255);
+  --primary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.96 0.005 260);
+  --muted-foreground: oklch(0.5 0.02 260);
+  --border: oklch(0.9 0.01 260);
+  --destructive: oklch(0.55 0.22 25);
+  --radius: 0.5rem;
+}
+
+.dark {
+  --background: oklch(0.16 0.015 265);
+  --foreground: oklch(0.95 0.01 260);
+  --card: oklch(0.2 0.018 265);
+  --card-foreground: oklch(0.95 0.01 260);
+  --primary: oklch(0.65 0.19 255);
+  --primary-foreground: oklch(0.15 0.01 260);
+  --muted: oklch(0.26 0.02 265);
+  --muted-foreground: oklch(0.68 0.02 260);
+  --border: oklch(0.3 0.02 265);
+  --destructive: oklch(0.6 0.22 25);
+}
+
+/* Bridge the semantic tokens into Tailwind's utility namespace, so `bg-background` and
+   `text-muted-foreground` work as class names. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Never remove focus outlines. A keyboard user with no visible focus ring cannot use the app
+   at all — they literally cannot see where they are. `:focus-visible` shows the ring for
+   keyboard navigation while keeping it off for mouse clicks, which is the behaviour everyone
+   actually wants and the reason people wrongly reach for `outline: none`. */
+:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}

@@ -133,6 +133,10 @@ jobs:
           format: sarif
           output: trivy-${{ matrix.name }}.sarif
           severity: HIGH,CRITICAL
+          # Only fail on vulnerabilities that HAVE a fixed version. An OS CVE with no upstream
+          # patch yet is something we cannot act on — failing on it keeps the gate permanently
+          # red, and a gate that is always red is a gate people stop reading (see npm audit).
+          ignore-unfixed: true
           exit-code: '1' # fail the build
 
       - name: Upload to GitHub Security tab

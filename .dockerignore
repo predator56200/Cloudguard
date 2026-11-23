@@ -1,0 +1,33 @@
+# Why: everything listed here is EXCLUDED from the Docker build context.
+#
+# Two reasons this matters:
+#   1. Speed — without it, `node_modules/` and `.venv/` (hundreds of MB) are uploaded to
+#      the Docker daemon on every single build, even though the image rebuilds them anyway.
+#   2. SECURITY — without it, a local `.env` containing real secrets gets baked into an
+#      image layer. Layers are immutable and are pushed to a registry. Deleting the file in
+#      a later RUN step does NOT remove it from the earlier layer; anyone who can pull the
+#      image can extract it. This is a top-10 container security mistake.
+
+.git/
+.github/
+docs/
+
+**/.env
+**/.env.*
+!**/.env.example
+
+**/node_modules/
+**/.next/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/*.py[cod]
+**/.mypy_cache/
+**/.ruff_cache/
+**/.pytest_cache/
+**/.coverage
+**/htmlcov/
+
+docker-data/
+*.md
+!README.md

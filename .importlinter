@@ -1,0 +1,115 @@
+# =============================================================================
+# import-linter — the architecture, enforced by CI
+# =============================================================================
+# docs/02 states: "arrows point down, never up. Nothing in `core` may import `fastapi` or
+# `arq`." That sentence is worth nothing on its own. Architecture documents describe what
+# people INTENDED; six months and four deadlines later, the code describes what they DID.
+#
+# This file makes the rule EXECUTABLE. A violation is a red build, not a code-review opinion
+# that a tired reviewer waves through at 6pm on a Friday.
+#
+# THE CONTRACT AND WHY IT IS WORTH DEFENDING:
+#
+#   The moment `core` imports FastAPI, `ScanService` can only run inside a web request. The
+#   worker can no longer call it. So someone copy-pastes the logic into the worker "just for
+#   now", and now a security rule change has to be made in two places — and one day it is
+#   made in only one. That is how a scanner starts giving two different answers to the same
+#   question.
+#
+#   Everything downstream depends on this holding: the worker reusing services, the 5-second
+#   test suite, the ability to add a CLI or an MCP server as a 200-line adapter instead of a
+#   rewrite.
+#
+# Run:  lint-imports --config .importlinter
+# =============================================================================
+
+[importlinter]
+root_packages =
+    cloudguard_core
+    cloudguard_api
+    cloudguard_worker
+
+# Required because our `forbidden` contracts name EXTERNAL packages (fastapi, arq, sqlalchemy)
+# rather than only our own modules. Without it import-linter builds a graph containing only
+# first-party imports — and the single most important contract below, "core must not depend on
+# a delivery framework", would silently pass no matter what we imported. A guard rail that
+# always passes is worse than no guard rail, because you trust it.
+include_external_packages = True
+
+# --- The rule that matters most ---------------------------------------------
+[importlinter:contract:core-is-framework-agnostic]
+name = core must not depend on any delivery framework
+type = forbidden
+source_modules =
+    cloudguard_core
+forbidden_modules =
+    fastapi
+    starlette
+    arq
+    uvicorn
+# If this fails: you put HTTP or queue logic in the domain. Move it up into an adapter
+# (apps/api/routers or apps/worker/tasks) and leave the reusable part in a service.
+
+# --- The apps are siblings, not relatives -----------------------------------
+[importlinter:contract:apps-are-independent]
+name = the api and the worker must not import each other
+type = independence
+modules =
+    cloudguard_api
+    cloudguard_worker
+# They share code ONLY through `cloudguard_core`. If the API needs something the worker has,
+# that something belongs in a service — where both can reach it, and where it can be tested
+# without either.
+
+# --- Layering within core ---------------------------------------------------
+[importlinter:contract:core-layers]
+name = core layers (higher may import lower; never the reverse)
+type = layers
+# NOTE: when `containers` is set, layer names are RELATIVE to the container. Writing the
+# fully-qualified name here yields `cloudguard_core.cloudguard_core.db` and a confusing
+# "missing layer" error.
+layers =
+    services
+    scanner
+    db
+    domain
+containers =
+    cloudguard_core
+# `domain` is at the BOTTOM: pure functions, no I/O, no SQLAlchemy. That purity is precisely
+# what lets docs/10 demand 100% coverage of it and get it cheaply — and `domain/lifecycle.py`
+# is the file where a bug silently auto-resolves every finding and reports a perfect security
+# score to a customer whose cloud is on fire (docs/12 § R3). It must stay trivially testable.
+
+# --- SQL lives in exactly one place ------------------------------------------
+[importlinter:contract:sql-is-confined-to-repositories]
+name = SQLAlchemy may not be imported outside core.db
+type = forbidden
+source_modules =
+    cloudguard_api.schemas
+    cloudguard_worker.tasks
+    cloudguard_core.domain
+    cloudguard_core.services
+forbidden_modules =
+    sqlalchemy
+# Repositories are the ONLY place SQL exists. Not "mostly". Only. A module that imports
+# `select()` has bypassed every guard rail we built — including the `org_id`-as-first-argument
+# repository convention that is layer 2 of our four-layer tenant isolation model (docs/08).
+#
+# `cloudguard_core.services` is listed even though services USE repositories: they receive
+# them injected and must never construct a query themselves.
+#
+# ⚠️ WHY `cloudguard_api.routers` IS *NOT* LISTED — an honest limitation, recorded rather
+# than hidden:
+#
+#   import-linter follows INDIRECT import chains. A router imports `deps`, and `deps` — the
+#   composition root — must name `AsyncSession` to type the `DbSession` dependency that
+#   FastAPI injects. So `routers -> deps -> sqlalchemy` is an unavoidable chain in ANY FastAPI
+#   app, and listing routers here makes the contract fail on correct code.
+#
+#   A contract that fails on correct code gets suppressed, and a suppressed contract protects
+#   nothing. So the mechanical rule is scoped to where it can be true, and the part it cannot
+#   express — "a router must not BUILD a query" — is enforced in code review and by the
+#   repository pattern itself (a router has no session to query WITH; it has a service).
+#
+#   Better an honest, enforceable rule plus a documented gap than a dishonest rule everyone
+#   learns to ignore.

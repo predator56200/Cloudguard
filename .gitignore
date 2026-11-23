@@ -1,0 +1,43 @@
+# Why: keep secrets, build artefacts and machine-local state out of git.
+# The single most important line in this file is `.env` — see docs/08-security-model.md.
+# A leaked .env in a security company's repo is an extinction-level event.
+
+# --- Secrets (NEVER commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Node / Next.js ---
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+
+# --- Editors / OS ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Local infra state ---
+docker-data/
+*.log

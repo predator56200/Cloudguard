@@ -1,0 +1,23 @@
+# Why: normalises whitespace/line-endings across editors BEFORE formatters run.
+# Without this, a Windows contributor commits CRLF, a Linux CI job sees a diff on every
+# line, and code review becomes unreadable. This file is the cheapest possible fix.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.py]
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+
+[*.md]
+# Markdown uses trailing double-space for hard line breaks.
+trim_trailing_whitespace = false

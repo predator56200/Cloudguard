@@ -1,0 +1,44 @@
+# =============================================================================
+# apps/worker — the ARQ background worker
+# =============================================================================
+# WHY ARQ AND NOT CELERY (docs/07)
+#
+# Celery is powerful and it is a swamp: a large config surface, ambiguous async support, a
+# broker abstraction we do not need (we have Redis and always will), and failure modes that
+# are folklore rather than documentation.
+#
+# ARQ is ~2,000 lines, natively async — which MATTERS here, because our whole stack is async
+# (asyncpg, httpx, FastAPI). Celery's threading model would force a sync/async bridge in
+# every task, and that bridge is where the subtle bugs live.
+#
+# We chose comprehensibility over capability, deliberately. If we ever need DAGs or workflow
+# visualisation, the migration target is Temporal — and because tasks are thin adapters over
+# `core.services`, that migration touches only `apps/worker/tasks/`, a few hundred lines.
+# The architecture already paid for that option.
+# =============================================================================
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloudguard-worker"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+dependencies = [
+    "cloudguard-core",
+    "arq>=0.26",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.8",
+    "black>=24.10",
+    "mypy>=1.13",
+]
+
+[tool.setuptools.packages.find]
+include = ["cloudguard_worker*"]

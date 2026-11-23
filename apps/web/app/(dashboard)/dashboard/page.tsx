@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 /**
  * Dashboard overview — `/dashboard`.
@@ -18,9 +24,7 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Overview</h1>
-        <p className="text-sm text-muted-foreground">
-          Your AWS security posture at a glance.
-        </p>
+        <p className="text-muted-foreground text-sm">Your AWS security posture at a glance.</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
@@ -30,7 +34,7 @@ export default function DashboardPage() {
             <CardDescription>Arrives in M5</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-muted-foreground">—</div>
+            <div className="text-muted-foreground text-4xl font-bold">—</div>
           </CardContent>
         </Card>
 
@@ -40,7 +44,7 @@ export default function DashboardPage() {
             <CardDescription>Arrives in M4</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-muted-foreground">—</div>
+            <div className="text-muted-foreground text-4xl font-bold">—</div>
           </CardContent>
         </Card>
 
@@ -50,7 +54,7 @@ export default function DashboardPage() {
             <CardDescription>Arrives in M2</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold text-muted-foreground">—</div>
+            <div className="text-muted-foreground text-4xl font-bold">—</div>
           </CardContent>
         </Card>
       </div>
@@ -63,7 +67,7 @@ export default function DashboardPage() {
             shell. No business logic — by design.
           </CardDescription>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
+        <CardContent className="text-muted-foreground text-sm">
           Next: <strong className="text-foreground">M1 — Auth &amp; Tenancy</strong>. Clerk
           organisations, PostgreSQL Row-Level Security, and the evil-tenant test suite that
           proves two organisations cannot see each other&apos;s data.

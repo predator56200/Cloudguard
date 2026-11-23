@@ -20,9 +20,9 @@ export default function SettingsPage() {
       description="Team, billing, suppressions, API keys, and audit log."
       milestone="M1 (team) / M8 (billing)"
     >
-      Organisation members and roles (Clerk), subscription and plan limits (Stripe), suppression
-      rules with mandatory reasons and expiry dates, API keys, and an append-only audit log of
-      every action taken in your organisation.
+      Organisation members and roles (Clerk), subscription and plan limits (Stripe),
+      suppression rules with mandatory reasons and expiry dates, API keys, and an append-only
+      audit log of every action taken in your organisation.
     </MilestonePlaceholder>
   );
 }

@@ -1,7 +1,13 @@
 import Link from 'next/link';
 
 import { Button, buttonVariants } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 /**
@@ -22,7 +28,7 @@ import { cn } from '@/lib/utils';
 export default function LandingPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col items-center justify-center px-6 py-24 text-center">
-      <p className="mb-4 rounded-full border border-border px-3 py-1 text-xs text-muted-foreground">
+      <p className="border-border text-muted-foreground mb-4 rounded-full border px-3 py-1 text-xs">
         M0 · Foundations
       </p>
 
@@ -30,7 +36,7 @@ export default function LandingPage() {
         Cloud security that <span className="text-primary">fixes itself</span>
       </h1>
 
-      <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
+      <p className="text-muted-foreground mt-6 max-w-2xl text-lg">
         Connect AWS and GitHub. CloudGuard finds the misconfiguration, traces it back to the
         Terraform that created it, and opens a pull request. We send fixes, not alerts.
       </p>
@@ -65,7 +71,7 @@ export default function LandingPage() {
             <CardTitle className="text-base">Read-only, always</CardTitle>
             <CardDescription>Cross-account IAM role. No access keys.</CardDescription>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
+          <CardContent className="text-muted-foreground text-sm">
             SecurityAudit + ViewOnlyAccess. We are structurally incapable of writing to your
             cloud — revoke us with one click, in your own console.
           </CardContent>
@@ -76,7 +82,7 @@ export default function LandingPage() {
             <CardTitle className="text-base">30 rules, not 600</CardTitle>
             <CardDescription>Signal, not a longer list.</CardDescription>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
+          <CardContent className="text-muted-foreground text-sm">
             Ranked by whether the resource is actually reachable and actually production — not
             by a generic severity label.
           </CardContent>
@@ -87,7 +93,7 @@ export default function LandingPage() {
             <CardTitle className="text-base">Fixes that merge</CardTitle>
             <CardDescription>The metric is PRs merged.</CardDescription>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
+          <CardContent className="text-muted-foreground text-sm">
             A findings list nobody acts on is a report. We measure ourselves on issues actually
             closed.
           </CardContent>

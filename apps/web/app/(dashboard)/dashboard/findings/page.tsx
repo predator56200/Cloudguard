@@ -19,10 +19,10 @@ export default function FindingsPage() {
       description="Prioritised security findings across your AWS accounts."
       milestone="M4 (API) / M5 (UI)"
     >
-      A virtualised, URL-filtered table ranked by <strong>effective severity</strong> — adjusted
-      for whether the resource is actually reachable and actually production, not just the
-      rule&apos;s generic label. Each finding opens to a plain-English explanation, business
-      impact, evidence, and a copyable AWS CLI command and Terraform fix.
+      A virtualised, URL-filtered table ranked by <strong>effective severity</strong> —
+      adjusted for whether the resource is actually reachable and actually production, not just
+      the rule&apos;s generic label. Each finding opens to a plain-English explanation,
+      business impact, evidence, and a copyable AWS CLI command and Terraform fix.
     </MilestonePlaceholder>
   );
 }

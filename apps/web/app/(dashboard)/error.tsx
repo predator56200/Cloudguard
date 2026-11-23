@@ -32,24 +32,23 @@ export default function DashboardError({
 }) {
   useEffect(() => {
     // M8: report to Sentry here. Deliberately not `console.log(error)` — see above.
-    // eslint-disable-next-line no-console
     console.error('Dashboard error:', error.digest);
   }, [error]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-      <AlertTriangle className="h-10 w-10 text-destructive" aria-hidden="true" />
+      <AlertTriangle className="text-destructive h-10 w-10" aria-hidden="true" />
 
       <div>
         <h2 className="text-lg font-semibold">Something went wrong</h2>
-        <p className="mt-1 max-w-md text-sm text-muted-foreground">
+        <p className="text-muted-foreground mt-1 max-w-md text-sm">
           We hit an unexpected error loading this page. The team has been notified.
         </p>
       </div>
 
       {/* Give support something to search on. Same idea as X-Request-ID on the API. */}
       {error.digest && (
-        <code className="rounded bg-muted px-2 py-1 text-xs text-muted-foreground">
+        <code className="bg-muted text-muted-foreground rounded px-2 py-1 text-xs">
           Reference: {error.digest}
         </code>
       )}

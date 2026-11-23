@@ -1,0 +1,8 @@
+{
+  "name": "@cloudguard/ts-types",
+  "version": "0.1.0",
+  "private": true,
+  "//": "GENERATED TypeScript types for the CloudGuard API. See README.md in this folder — this package is never hand-edited.",
+  "types": "./api.d.ts",
+  "files": ["api.d.ts"]
+}

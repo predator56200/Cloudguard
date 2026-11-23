@@ -1,0 +1,66 @@
+# =============================================================================
+# packages/core — THE domain package
+# =============================================================================
+# Why this is a separate installable package and not just a folder:
+#
+#   `apps/api` and `apps/worker` BOTH depend on it, and neither depends on the other.
+#   A public S3 bucket is critical whether the scan was triggered by an HTTP request, a cron
+#   job, or a test — so the rule that says so lives here, not in an app.
+#
+#   The dependency rule (docs/02): arrows point DOWN, never up.
+#   `core` must NEVER import `fastapi` or `arq`. If it does, the layering is broken and the
+#   day we add a CLI or an MCP server we'd have to reimplement the product instead of writing
+#   a 200-line adapter. This is enforced by `import-linter` in CI (see .importlinter),
+#   not by good intentions.
+#
+# Roadmap: M0 task 0.2.
+# =============================================================================
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloudguard-core"
+version = "0.1.0"
+description = "CloudGuard AI — shared domain, persistence, scanner and services"
+requires-python = ">=3.12"
+
+dependencies = [
+    # Config + validation at every boundary.
+    "pydantic>=2.9",
+    "pydantic-settings>=2.7",  # 2.7 adds NoDecode (used in config.py)
+
+    # Structured logging. See cloudguard_core/logging.py for why not stdlib `logging`.
+    "structlog>=24.4",
+
+    # Persistence. asyncpg (not psycopg2) because the ENTIRE backend is async: one blocking
+    # DB call inside an async handler stalls the event loop for every concurrent request.
+    "sqlalchemy[asyncio]>=2.0.36",
+    "asyncpg>=0.30",
+    "alembic>=1.14",
+
+    # Queue + cache + rate limits.
+    "redis>=5.2",
+
+    # HTTP client. httpx, not `requests` — requests is sync-only.
+    "httpx>=0.28",
+
+    # NOTE: boto3 (M2), anthropic (M6), stripe (M8) are added at their milestone, not now.
+    # An unused dependency is an unaudited attack surface. We are a security company.
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "ruff>=0.8",
+    "black>=24.10",
+    "mypy>=1.13",
+    "import-linter>=2.1",   # enforces the layering rule above
+    "types-redis",
+]
+
+[tool.setuptools.packages.find]
+include = ["cloudguard_core*"]

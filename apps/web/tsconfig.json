@@ -1,5 +1,5 @@
 {
-  "//": "TypeScript config. `strict: true` is the whole point — see the block below.",
+  // TypeScript config. `strict: true` is the whole point — see the block below.
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["dom", "dom.iterable", "esnext"],
@@ -14,7 +14,7 @@
     "incremental": true,
     "noEmit": true,
 
-    "//strict": "Non-negotiable (docs/11). From M5 the API types are GENERATED from the backend's OpenAPI schema. Strict mode is what turns that generated file into a real contract: a component cannot reference a field the API does not return, because tsc fails. Without strict (and with `any` allowed), the generated types become decorative and the frontend silently drifts from the backend — the single most common bug class in split-stack teams.",
+    // Non-negotiable (docs/11). From M5 the API types are GENERATED from the backend's OpenAPI schema. Strict mode is what turns that generated file into a real contract: a component cannot reference a field the API does not return, because tsc fails. Without strict (and with `any` allowed), the generated types become decorative and the frontend silently drifts from the backend — the single most common bug class in split-stack teams.
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
@@ -22,7 +22,7 @@
 
     "plugins": [{ "name": "next" }],
 
-    "//paths": "`@/` avoids ../../../ import chains, which break the moment you move a file.",
+    // `@/` avoids ../../../ import chains, which break the moment you move a file.
     "paths": {
       "@/*": ["./*"]
     }

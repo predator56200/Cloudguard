@@ -1,0 +1,44 @@
+# =============================================================================
+# apps/api — the FastAPI HTTP adapter
+# =============================================================================
+# This app is DELIBERATELY THIN. Its entire job is: authenticate, authorise, validate,
+# delegate to a core service, serialise the result. If an endpoint contains business logic,
+# it is in the wrong layer (docs/02).
+#
+# Note how few dependencies it has. Everything substantial — persistence, domain, scanner —
+# comes from `cloudguard-core`. The API brings only what is genuinely HTTP-specific.
+# That ratio is the health check for the layering: if this list starts growing, business
+# logic is leaking upward.
+# =============================================================================
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cloudguard-api"
+version = "0.1.0"
+requires-python = ">=3.12"
+
+dependencies = [
+    "cloudguard-core",              # installed from ../../packages/core (editable, in Docker)
+    "fastapi>=0.115",
+    # [standard] pulls in uvloop + httptools: a materially faster event loop and HTTP parser.
+    "uvicorn[standard]>=0.32",
+    "python-multipart>=0.0.18",     # form parsing; also patches a known CVE in older versions
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.24",
+    "pytest-cov>=6.0",
+    "httpx>=0.28",                  # FastAPI's TestClient transport
+    "ruff>=0.8",
+    "black>=24.10",
+    "mypy>=1.13",
+    "import-linter>=2.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["cloudguard_api*"]

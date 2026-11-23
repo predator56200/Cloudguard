@@ -1,0 +1,138 @@
+# =============================================================================
+# CloudGuard AI — local development environment
+# =============================================================================
+# Why: `make dev` must produce a COMPLETE working stack on a clean machine in under 10
+# minutes (docs/01 § Makefile). "Works on my machine" is where startups die. A new engineer's
+# first hour should be spent reading code, not installing Postgres.
+#
+# Roadmap: M0 task 0.9.
+#
+# Note the api/worker split (docs/02-backend-architecture.md): they are SEPARATE PROCESSES
+# from day one, not one process with a thread. A scan takes 30–180s; running it inside an
+# HTTP request would block a web worker and one customer's slow AWS account would degrade
+# everyone's dashboard. Splitting them later is a refactor; splitting them now is free.
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 16 — the system of record.
+  # 16 (not 15) because we depend on modern Row-Level Security ergonomics and
+  # UUIDv7-friendly index behaviour (docs/04-database.md).
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cloudguard
+      POSTGRES_PASSWORD: cloudguard # local only — never a real secret in a compose file
+      POSTGRES_DB: cloudguard
+    ports:
+      - "5432:5432" # exposed so you can attach psql / a GUI from the host
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # Why a healthcheck: without it, `depends_on` only waits for the CONTAINER to start,
+      # not for Postgres to accept connections. The API would boot, fail to connect, and
+      # crash-loop. This is the single most common docker-compose bug.
+      test: ["CMD-SHELL", "pg_isready -U cloudguard -d cloudguard"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # Redis 7 — ARQ job queue + rate limits + caches (docs/07-background-jobs.md).
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    # appendonly: jobs survive a container restart. Losing a queued scan because Redis
+    # restarted is a silent, invisible failure — exactly the kind we refuse to ship.
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ---------------------------------------------------------------------------
+  # API — FastAPI. Stateless, fast, never does slow work (docs/02).
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: . # repo root, because the image needs BOTH packages/core and apps/api
+      dockerfile: apps/api/Dockerfile
+      target: dev # multi-stage: `dev` has hot-reload + dev deps; `prod` is slim and hardened
+    env_file: .env
+    environment:
+      # Override the compose-internal hostnames. Inside the network, services resolve each
+      # other by SERVICE NAME, not localhost.
+      DATABASE_URL: postgresql+asyncpg://cloudguard:cloudguard@postgres:5432/cloudguard
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    volumes:
+      # Bind-mount source for hot reload. Only in dev — the prod image copies code in.
+      - ./apps/api:/app/apps/api
+      - ./packages/core:/app/packages/core
+    depends_on:
+      postgres: { condition: service_healthy } # wait for READY, not merely STARTED
+      redis: { condition: service_healthy }
+    healthcheck:
+      # /healthz = liveness (is the process alive?). Deliberately checks NO dependencies —
+      # see apps/api/cloudguard_api/routers/health.py for why that distinction matters.
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  # ---------------------------------------------------------------------------
+  # Worker — ARQ. Owns all slow, retryable, scheduled work.
+  # No ports: the worker has NO inbound network surface. That is a security property
+  # (docs/08 § T3) — it holds customer AWS credentials and must not be reachable.
+  # ---------------------------------------------------------------------------
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+      target: dev
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://cloudguard:cloudguard@postgres:5432/cloudguard
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - ./apps/worker:/app/apps/worker
+      - ./packages/core:/app/packages/core
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  # ---------------------------------------------------------------------------
+  # Web — Next.js 15.
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+      target: dev
+    environment:
+      # Server-side only. The browser never learns this URL (docs/06 § BFF proxy).
+      API_INTERNAL_URL: http://api:8000
+      NODE_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      # Anonymous volume: keeps the CONTAINER's node_modules (built for Linux) from being
+      # clobbered by the HOST's bind-mount (built for Windows). Without this line, native
+      # modules break and the error message is deeply unhelpful.
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  redis_data:

@@ -67,8 +67,15 @@ jobs:
         with: { python-version: '3.12' }
       - run: pip install pip-audit
       - run: pip install -e "./packages/core" -e "./apps/api" -e "./apps/worker"
+      # Our own packages (cloudguard-core/-api/-worker) are installed editable and are NOT on
+      # PyPI, so pip-audit cannot look them up. Under --strict an un-auditable package is fatal,
+      # and --skip-editable does not help: a skipped package is ALSO fatal under --strict.
+      # So audit exactly the third-party packages that got installed, pinned, and keep --strict
+      # for them. Our own code is covered by CodeQL below.
+      - name: List third-party dependencies
+        run: pip freeze --exclude-editable | grep -vi '^cloudguard' > third-party-requirements.txt
       - name: pip-audit
-        run: pip-audit --strict
+        run: pip-audit --strict --no-deps --disable-pip -r third-party-requirements.txt
 
   dependencies-node:
     name: Node dependencies (npm audit)
@@ -115,7 +122,12 @@ jobs:
             -t cloudguard-${{ matrix.name }}:scan ${{ matrix.context }}
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@0.28.0
+        # Pinned to a full commit SHA, not a tag. In March 2026 attackers force-pushed 76 of
+        # trivy-action's 77 version tags to credential-stealing malware (GHSA-69fq-xp46-6x23);
+        # the old un-prefixed tags like `0.28.0` were deleted in the clean-up, which is why
+        # this job started failing with "unable to find version". A tag can be moved; a SHA
+        # cannot. As a supply-chain target, we pin third-party actions that see secrets by SHA.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: cloudguard-${{ matrix.name }}:scan
           format: sarif
@@ -124,7 +136,7 @@ jobs:
           exit-code: '1' # fail the build
 
       - name: Upload to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always() # upload even when the scan FAILED — that is exactly when you want to read it
         with:
           sarif_file: trivy-${{ matrix.name }}.sarif
@@ -147,8 +159,8 @@ jobs:
         language: [python, javascript-typescript]
     steps:
       - uses: actions/checkout@v4
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           queries: security-extended
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4

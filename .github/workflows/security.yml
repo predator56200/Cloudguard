@@ -1,0 +1,154 @@
+# =============================================================================
+# Security scanning — runs on every PR, and nightly
+# =============================================================================
+# WHY A SEPARATE WORKFLOW FROM ci.yml
+#
+# Because these checks answer a different question. CI asks "does this code work?" Security
+# asks "is this code, and everything it depends on, safe to run?" — and the answer can change
+# WITHOUT ANYONE TOUCHING THE CODE. A CVE disclosed against a transitive dependency at 2am on
+# a Sunday makes yesterday's green build unsafe today. Hence the nightly schedule: CI is
+# event-driven, security must also be time-driven.
+#
+# We are a security company. We hold read access to N customers' production AWS accounts
+# (docs/08 § T3 — we are a supply-chain target BY CONSTRUCTION). Running our own product
+# against our own account, and our own scanners against our own code, is not a nice-to-have.
+# It is the minimum credible standard, and it is also the best marketing asset we have:
+# our score goes on the public /trust page.
+#
+# Roadmap: M0 task 0.14 (and docs/08 § Our own posture).
+# =============================================================================
+
+name: Security
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # 03:00 UTC daily. Catches CVEs disclosed against dependencies we have not touched.
+    - cron: '0 3 * * *'
+
+permissions:
+  contents: read
+  security-events: write # required to upload SARIF results to the Security tab
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # THE MOST IMPORTANT JOB IN THIS FILE.
+  #
+  # A secret committed to git is a secret you must treat as compromised FOREVER — rewriting
+  # history does not help, because forks, mirrors, CI caches and clones already have it. The
+  # only remedy is rotation, plus disclosure if it was a customer's.
+  #
+  # gitleaks also runs in pre-commit (.pre-commit-config.yaml). Both. Deliberately: pre-commit
+  # is easy to bypass (`--no-verify`, or simply not installing the hook), so it is a
+  # convenience. CI is the control.
+  # ---------------------------------------------------------------------------
+  secrets:
+    name: Secret scanning (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # scan the FULL history, not just this commit
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------------------------------------------------------------------------
+  # Dependency vulnerabilities. A critical CVE BLOCKS THE MERGE.
+  # ---------------------------------------------------------------------------
+  dependencies-python:
+    name: Python dependencies (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: pip install pip-audit
+      - run: pip install -e "./packages/core" -e "./apps/api" -e "./apps/worker"
+      - name: pip-audit
+        run: pip-audit --strict
+
+  dependencies-node:
+    name: Node dependencies (npm audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      # `--audit-level=high`: fail on high and critical. Not on every low-severity advisory in
+      # a transitive dev dependency — a security gate that cries wolf is a gate people learn
+      # to click through, and then it stops working for the one that matters.
+      - run: npm audit --audit-level=high
+
+  # ---------------------------------------------------------------------------
+  # Container image vulnerabilities.
+  #
+  # Our dependencies are not just pip and npm packages — they include everything in the base
+  # image: OpenSSL, glibc, curl. Trivy scans the OS layer, which pip-audit and npm audit
+  # cannot see. A CVE in the container's OpenSSL is just as exploitable as one in our code.
+  # ---------------------------------------------------------------------------
+  containers:
+    name: Container scanning (trivy)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: api, dockerfile: apps/api/Dockerfile, context: . }
+          - { name: worker, dockerfile: apps/worker/Dockerfile, context: . }
+          - { name: web, dockerfile: apps/web/Dockerfile, context: apps/web }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: |
+          docker build -f ${{ matrix.dockerfile }} --target prod \
+            -t cloudguard-${{ matrix.name }}:scan ${{ matrix.context }}
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: cloudguard-${{ matrix.name }}:scan
+          format: sarif
+          output: trivy-${{ matrix.name }}.sarif
+          severity: HIGH,CRITICAL
+          exit-code: '1' # fail the build
+
+      - name: Upload to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() # upload even when the scan FAILED — that is exactly when you want to read it
+        with:
+          sarif_file: trivy-${{ matrix.name }}.sarif
+          category: trivy-${{ matrix.name }}
+
+  # ---------------------------------------------------------------------------
+  # Static analysis of OUR OWN code: injection, path traversal, weak crypto, hardcoded creds.
+  #
+  # (Ruff's bandit rules — the `S` selector in pyproject.toml — catch the obvious cases at
+  # lint time. CodeQL does interprocedural DATAFLOW analysis: it can trace a value from an HTTP
+  # parameter, through three function calls, into a SQL string. That is a class of bug a
+  # linter structurally cannot see.)
+  # ---------------------------------------------------------------------------
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3

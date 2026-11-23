@@ -1,0 +1,10 @@
+# Why: node_modules is hundreds of MB and is rebuilt inside the image anyway — uploading it to
+# the Docker daemon on every build is pure waste. `.next` would poison the build with stale
+# artefacts compiled for a different platform.
+node_modules
+.next
+.env
+.env.*
+!.env.example
+npm-debug.log*
+.git

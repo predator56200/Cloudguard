@@ -1,0 +1,11 @@
+{
+  "//": "Formatting is not a matter of taste; it is a matter of ending the argument. Prettier decides, nobody debates it in review, and diffs stay small.",
+  "semi": true,
+  "singleQuote": true,
+  "trailingComma": "all",
+  "printWidth": 95,
+  "tabWidth": 2,
+
+  "//plugin": "prettier-plugin-tailwindcss sorts Tailwind classes into a canonical order. Without it, `p-4 flex text-sm` and `flex text-sm p-4` are the same UI but a noisy diff — and reviewers stop reading class attributes entirely, which is where the accessibility regressions hide.",
+  "plugins": ["prettier-plugin-tailwindcss"]
+}

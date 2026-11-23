@@ -1,0 +1,216 @@
+# =============================================================================
+# CI — runs on every pull request and every push to main
+# =============================================================================
+# THE RULE (docs/10): NO MERGE ON RED. Not once. Not "just this one time before the demo."
+# The first time you override a red build is the day the culture dies, and you will not get
+# it back.
+#
+# Ordering is deliberate: CHEAPEST CHECKS FIRST. A formatting error should fail in 40 seconds,
+# not after a four-minute Docker build. Fast feedback is what makes people run CI rather than
+# route around it.
+#
+# Jobs run in PARALLEL where they are independent. Wall-clock time is the number that decides
+# whether engineers wait for CI or start a new task and lose their context.
+#
+# Roadmap: M0 task 0.14.
+# =============================================================================
+
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel a running CI job when a new commit is pushed to the same PR. Without this, five
+# pushes in ten minutes queue five full pipelines and the last one — the only one anyone
+# cares about — waits behind four obsolete runs.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12'
+  NODE_VERSION: '22'
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # 1. Backend lint + format + types. Cheap and fast — fail here, not later.
+  # ---------------------------------------------------------------------------
+  backend-quality:
+    name: Backend · lint, format, types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install
+        run: |
+          pip install -e "./packages/core[dev]" -e "./apps/api[dev]" -e "./apps/worker[dev]"
+
+      - name: Ruff (lint)
+        run: ruff check .
+
+      - name: Black (format check)
+        # --check, not --write. CI verifies; it does not silently rewrite your code.
+        run: black --check .
+
+      - name: mypy (strict)
+        run: mypy packages/core apps/api apps/worker
+
+      # ⚠️ THE ARCHITECTURE CHECK. This is the one that matters most in this job.
+      #
+      # It enforces the layering rule from docs/02: `core` may not import fastapi or arq;
+      # the api and worker may not import each other; SQL lives only in repositories.
+      #
+      # The moment `core` imports FastAPI, ScanService can only run inside a web request —
+      # the worker can no longer call it — so someone copy-pastes the logic "just for now",
+      # and a security rule change now has to be made in two places. One day it is made in
+      # only one, and the scanner starts giving two different answers to the same question.
+      #
+      # An architecture document describes what people INTENDED. This step describes what
+      # they DID. Only one of the two is enforceable.
+      - name: import-linter (architecture contracts)
+        run: lint-imports --config .importlinter
+
+  # ---------------------------------------------------------------------------
+  # 2. Backend tests. The fast suite must stay FAST (docs/10: under 5 seconds).
+  # ---------------------------------------------------------------------------
+  backend-tests:
+    name: Backend · tests
+    runs-on: ubuntu-latest
+
+    # Real Postgres and real Redis. NOT SQLite, NOT a mock.
+    #
+    # Non-negotiable, for one reason: RLS CANNOT BE TESTED AGAINST SQLITE. Row-Level Security
+    # is layer 3 of our four-layer tenant isolation model (docs/08) — the layer that catches
+    # the bug the others miss. Anyone who mocks the database here is testing their mock, and
+    # would ship a product where two customers can read each other's vulnerabilities.
+    #
+    # (M0 has no tenant tables yet. The services are wired up NOW so that M1's very first
+    # RLS test has somewhere to run, rather than being blocked on CI plumbing.)
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cloudguard
+          POSTGRES_PASSWORD: cloudguard
+          POSTGRES_DB: cloudguard_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: postgresql+asyncpg://cloudguard:cloudguard@localhost:5432/cloudguard_test
+      REDIS_URL: redis://localhost:6379/0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - name: Install
+        run: |
+          pip install -e "./packages/core[dev]" -e "./apps/api[dev]" -e "./apps/worker[dev]"
+
+      # ⚠️ MIGRATIONS MUST BE REVERSIBLE (docs/04). We prove it on every single PR.
+      #
+      # upgrade → downgrade → upgrade. If `downgrade()` is a lie — and autogenerated ones
+      # often are — you discover it HERE, in a pull request, and not at 3am when a bad deploy
+      # needs rolling back and the rollback is the thing that's broken.
+      - name: Migrations are reversible
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+
+      - name: Tests
+        run: pytest --cov=cloudguard_core --cov=cloudguard_api --cov-report=term-missing
+
+  # ---------------------------------------------------------------------------
+  # 3. Frontend.
+  # ---------------------------------------------------------------------------
+  frontend:
+    name: Frontend · lint, types, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      # `npm ci`, never `npm install`: installs exactly the lockfile and fails if it disagrees
+      # with package.json. A CI build that can resolve a different dependency tree than the one
+      # you tested locally is a supply-chain risk with extra steps.
+      - run: npm ci
+
+      - name: Prettier
+        run: npm run format:check
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: TypeScript (strict)
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+  # ---------------------------------------------------------------------------
+  # 4. Docker build verification.
+  #
+  # WHY: `docker compose up` working on your Windows laptop proves nothing about whether the
+  # PRODUCTION image builds. They are different stages, with different dependency sets and a
+  # different user. Without this job, "the image doesn't build" is a discovery you make during
+  # a deploy — which is to say, at the worst possible time.
+  # ---------------------------------------------------------------------------
+  docker:
+    name: Docker · build verification
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false # report ALL broken images, not just the first
+      matrix:
+        include:
+          - { name: api, dockerfile: apps/api/Dockerfile, context: . }
+          - { name: worker, dockerfile: apps/worker/Dockerfile, context: . }
+          - { name: web, dockerfile: apps/web/Dockerfile, context: apps/web }
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.name }} (prod target)
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          target: prod # ← the PROD stage, not dev. This is the whole point of the job.
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

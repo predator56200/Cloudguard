@@ -34,7 +34,11 @@ WORKDIR /app
 
 # `curl` for container-level healthchecks/debugging. Nothing else — every package is
 # attack surface (docs/08 § T3: we hold read access to N production clouds).
+# `apt-get upgrade` pulls in Debian security fixes released AFTER the python:3.12-slim image
+# was last rebuilt. Without it, Trivy flags OS packages (zlib, openssl, util-linux...) that
+# already have a patched version available, and we would ship the vulnerable one.
 RUN apt-get update \
+    && apt-get upgrade -y \
     && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -88,7 +92,10 @@ FROM base AS prod
 # No [dev] extras: pytest, mypy and ruff have no business in a production image.
 COPY packages/core /app/packages/core
 COPY apps/api      /app/apps/api
-RUN pip install "/app/packages/core" "/app/apps/api"
+# Install, then remove pip itself. Nothing installs packages at runtime, and pip's own
+# vendored libraries are attack surface that Trivy reports against this image.
+RUN pip install "/app/packages/core" "/app/apps/api" \
+    && pip uninstall -y pip
 
 COPY alembic.ini /app/alembic.ini
 COPY migrations  /app/migrations

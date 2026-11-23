@@ -1,0 +1,49 @@
+{
+  "name": "@cloudguard/web",
+  "version": "0.1.0",
+  "private": true,
+  "//": "M0 dependencies ONLY. Clerk (M1), Recharts (M5) and Stripe (M8) are added at their milestone. An unused dependency is unaudited attack surface — and `npm audit` in CI blocks a merge on a critical CVE, so every package we add is a package we have to keep patching.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "dependencies": {
+    "next": "15.1.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+
+    "//tanstack": "Server-state cache. NOT a global store — see docs/06 § State management: four kinds of state, four tools. Redux/Zustand are deliberately absent.",
+    "@tanstack/react-query": "^5.62.7",
+
+    "//shadcn-primitives": "shadcn/ui is NOT a dependency — it copies source into components/ui/ so we own it. These are the headless Radix primitives and styling utilities those copied components import.",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^2.6.0",
+    "lucide-react": "^0.469.0",
+    "next-themes": "^0.4.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.2",
+    "@types/react-dom": "^19.0.2",
+
+    "//tailwind-v4": "v4 is configured in CSS (@theme in globals.css), not in a tailwind.config.js. That is why no such file exists — its absence is intentional, not an omission.",
+    "tailwindcss": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "postcss": "^8.4.49",
+
+    "eslint": "^9.17.0",
+    "eslint-config-next": "15.1.3",
+    "@eslint/eslintrc": "^3.2.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.2",
+    "@typescript-eslint/parser": "^8.18.2",
+    "prettier": "^3.4.2",
+    "prettier-plugin-tailwindcss": "^0.6.9"
+  }
+}

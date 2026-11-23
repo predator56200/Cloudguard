@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('rounded-lg border border-border bg-card text-card-foreground', className)}
+      className={cn('border-border bg-card text-card-foreground rounded-lg border', className)}
       {...props}
     />
   );
@@ -33,11 +33,16 @@ export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElemen
 export function CardTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
   // An <h3>, not a styled <div>. Screen readers navigate by heading structure; a div with
   // big bold text is invisible to that navigation. Semantics are accessibility.
-  return <h3 className={cn('font-semibold leading-none tracking-tight', className)} {...props} />;
+  return (
+    <h3 className={cn('leading-none font-semibold tracking-tight', className)} {...props} />
+  );
 }
 
-export function CardDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {
-  return <p className={cn('text-sm text-muted-foreground', className)} {...props} />;
+export function CardDescription({
+  className,
+  ...props
+}: HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={cn('text-muted-foreground text-sm', className)} {...props} />;
 }
 
 export function CardContent({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

@@ -1,4 +1,10 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 /**
  * A placeholder for routes whose feature lands in a later milestone.
@@ -29,7 +35,7 @@ export function MilestonePlaceholder({
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="text-muted-foreground text-sm">{description}</p>
       </div>
 
       <Card>
@@ -37,7 +43,7 @@ export function MilestonePlaceholder({
           <CardTitle className="text-base">Arriving in {milestone}</CardTitle>
           <CardDescription>Not yet implemented — by design.</CardDescription>
         </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">{children}</CardContent>
+        <CardContent className="text-muted-foreground text-sm">{children}</CardContent>
       </Card>
     </div>
   );

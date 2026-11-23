@@ -19,6 +19,9 @@ import type { ComponentProps } from 'react';
  * like the tools our buyers already trust — Wiz, Datadog, Splunk — is itself a credibility
  * signal.
  */
-export function ThemeProvider({ children, ...props }: ComponentProps<typeof NextThemesProvider>) {
+export function ThemeProvider({
+  children,
+  ...props
+}: ComponentProps<typeof NextThemesProvider>) {
   return <NextThemesProvider {...props}>{children}</NextThemesProvider>;
 }

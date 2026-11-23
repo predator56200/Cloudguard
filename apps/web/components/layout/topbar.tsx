@@ -30,8 +30,8 @@ export function TopBar() {
   useEffect(() => setMounted(true), []);
 
   return (
-    <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-6">
-      <div className="text-sm text-muted-foreground">
+    <header className="border-border flex h-14 shrink-0 items-center justify-between border-b px-6">
+      <div className="text-muted-foreground text-sm">
         {/* M1: <OrganizationSwitcher /> */}
         CloudGuard AI
       </div>

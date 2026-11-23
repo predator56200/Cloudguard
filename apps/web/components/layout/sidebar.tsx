@@ -1,6 +1,13 @@
 'use client';
 
-import { AlertTriangle, Cloud, FileText, LayoutDashboard, Settings, Shield } from 'lucide-react';
+import {
+  AlertTriangle,
+  Cloud,
+  FileText,
+  LayoutDashboard,
+  Settings,
+  Shield,
+} from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -36,9 +43,9 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-border bg-card md:flex md:flex-col">
-      <div className="flex h-14 items-center gap-2 border-b border-border px-6">
-        <Shield className="h-5 w-5 text-primary" aria-hidden="true" />
+    <aside className="border-border bg-card hidden w-60 shrink-0 border-r md:flex md:flex-col">
+      <div className="border-border flex h-14 items-center gap-2 border-b px-6">
+        <Shield className="text-primary h-5 w-5" aria-hidden="true" />
         <span className="font-semibold">CloudGuard</span>
       </div>
 
@@ -48,7 +55,8 @@ export function Sidebar() {
         {NAV.map(({ href, label, icon: Icon }) => {
           // Exact match for the index route, prefix match for the rest — otherwise /dashboard
           // would light up for every child page.
-          const isActive = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
+          const isActive =
+            href === '/dashboard' ? pathname === href : pathname.startsWith(href);
 
           return (
             <Link
@@ -69,7 +77,7 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t border-border p-3 text-xs text-muted-foreground">
+      <div className="border-border text-muted-foreground border-t p-3 text-xs">
         M0 · Foundations
       </div>
     </aside>

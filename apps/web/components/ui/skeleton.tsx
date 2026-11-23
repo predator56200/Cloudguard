@@ -18,5 +18,5 @@ import { cn } from '@/lib/utils';
  * production cloud, "feels cheap" is a conversion problem.
  */
 export function Skeleton({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('animate-pulse rounded-md bg-muted', className)} {...props} />;
+  return <div className={cn('bg-muted animate-pulse rounded-md', className)} {...props} />;
 }

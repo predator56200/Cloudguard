@@ -1,0 +1,3 @@
+# Static assets (favicon, og-image, logo) live here and are served from the site root.
+# The prod Dockerfile copies this directory, so it must exist even while empty — git does not
+# track empty directories, hence this file.

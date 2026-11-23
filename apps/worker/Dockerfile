@@ -30,6 +30,12 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
+# Debian security fixes released after the python:3.12-slim image was last rebuilt
+# (same reasoning as apps/api/Dockerfile).
+RUN apt-get update \
+    && apt-get upgrade -y \
+    && rm -rf /var/lib/apt/lists/*
+
 # Non-root. This container will hold customer AWS credentials in memory from M2 onward — it
 # is the single most sensitive process we run. Root inside a container plus any escape
 # primitive is root on a host shared with every other customer's workload.
@@ -61,7 +67,9 @@ FROM base AS prod
 
 COPY packages/core /app/packages/core
 COPY apps/worker   /app/apps/worker
-RUN pip install "/app/packages/core" "/app/apps/worker"
+# Install, then remove pip: nothing installs packages at runtime (see apps/api/Dockerfile).
+RUN pip install "/app/packages/core" "/app/apps/worker" \
+    && pip uninstall -y pip
 
 USER cloudguard
 

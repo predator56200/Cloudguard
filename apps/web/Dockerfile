@@ -13,7 +13,8 @@ FROM node:22-alpine AS base
 WORKDIR /app
 # Alpine is fine for Node (unlike Python — see apps/api/Dockerfile for why musl breaks there).
 # libc6-compat covers the few native modules that still expect glibc symbols.
-RUN apk add --no-cache libc6-compat
+# `apk upgrade` pulls in Alpine security fixes released after the base image was built.
+RUN apk upgrade --no-cache && apk add --no-cache libc6-compat
 
 # --- deps --------------------------------------------------------------------
 FROM base AS deps
@@ -50,6 +51,13 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # primitive is root on a host shared with other workloads.
 RUN addgroup --system --gid 1001 nodejs \
     && adduser --system --uid 1001 nextjs
+
+# The runtime is `node server.js`: it never needs npm, npx, yarn or corepack. The base image
+# ships them anyway, and npm's own bundled dependencies (sigstore, pacote, brace-expansion...)
+# were most of Trivy's findings against this image. Remove the package managers entirely.
+RUN rm -rf /usr/local/lib/node_modules \
+    /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+    /usr/local/bin/yarn /usr/local/bin/yarnpkg /opt/yarn-*
 
 # `standalone` contains the server plus ONLY the node_modules actually reached by the code —
 # Next traces the import graph. This is why the runtime image is ~150MB instead of ~1.2GB.

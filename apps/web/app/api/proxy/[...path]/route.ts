@@ -38,7 +38,10 @@ const API_URL = process.env.API_INTERNAL_URL ?? 'http://localhost:8000';
  */
 const FORWARDED_HEADERS = ['content-type', 'x-request-id', 'idempotency-key'] as const;
 
-async function handler(request: NextRequest, context: { params: Promise<{ path: string[] }> }) {
+async function handler(
+  request: NextRequest,
+  context: { params: Promise<{ path: string[] }> },
+) {
   const { path } = await context.params;
 
   // Preserve query params (?status=open&severity=critical) — the findings filters live in the
